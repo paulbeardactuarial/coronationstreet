@@ -1,49 +1,81 @@
 library(tidyverse)
-library(rvest)
 library(ggpattern)
 
 
-# section 1 - pull list of character names
-char.list.1 <- "https://coronationstreet.fandom.com/wiki/Category:List_of_main_character_appearances?from="
+# base URL code for scraping character names
+base.url.letters <- "https://coronationstreet.fandom.com/wiki/Category:List_of_main_character_appearances?from="
+
+#populate all.char.names.list with all character names that have pages on fandom.wiki
+#to do this, cycle through each letter of alphabet, scrape from the page that has corrie characters under that letter
+
 all.char.names.list <- list()
 
 for (lett in LETTERS) {
-  char.list <- str_c(char.list.1, lett, sep = "")
+
+  char.list <- str_c(base.url.letters, lett, sep = "")
+
   character.names <- rvest::read_html(char.list) %>%
     html_elements(".category-page__member-link") %>%
     html_text() %>%
     str_remove_all(" - List of appearances")
+
   all.char.names.list[[lett]] <- character.names
+
 }
+
+# get vector of all unique character names
+
 all.char.names <- all.char.names.list %>%
-  unlist() %>%
-  as.character()
-all.char.names <- all.char.names %>% unique() # remove duplicates
+  unlist() %>%                              # turn list into vector
+  as.character() %>%                        # convert data type to character
+  unique()                                  # remove duplicates
 
-# pull in data for every character
-all.char.data <- list()
 
-for (i in seq_along(all.char.names)) {
-  char.text <- all.char.names[[i]] %>% str_replace_all(" ", "_")
-  char.appear <- str_c("https://coronationstreet.fandom.com/wiki/", char.text, "_-_List_of_appearances")
-  char.bio <- str_c("https://coronationstreet.fandom.com/wiki/", char.text)
+# base URL code for scraping character names
+base.url.characters <- "https://coronationstreet.fandom.com/wiki/"
+
+#function to scrape fandom wiki for a character
+# function is calibrated for Coronation St. wiki, although might be more transferable to others
+
+scrape.fandom.wiki <- function(character,
+                               base.url) {
+
+  char.text <- character %>% str_replace_all(" ", "_")
+  char.bio <- str_c(base.url, char.text)
 
   # pull the key stats for the character
   char.stat <- rvest::read_html(char.bio) %>%
     html_elements(".pi-secondary-font") %>%
     html_text() %>%
     .[-1]
+
   char.value <- rvest::read_html(char.bio) %>%
     html_elements(".pi-font") %>%
     html_text()
-  char.data <- data.frame(char.stat, char.value)
-  all.char.data[[i]] <- char.data
+
+  char.data <- data.frame(Field = char.stat, Value = char.value)
+
+  return(char.data)
+
 }
-names(all.char.data) <- all.char.names
-char.long <- all.char.data %>% bind_rows(.id = "char.name")
+
+
+#populate all.char.data by mapping scrape.fandom.wiki across character vector... can take a while (10 mins)
+
+char.data.list <- map(.x=all.char.names,
+                     .f=scrape.fandom.wiki,
+                     base.url=base.url.characters)
+
+# tidy the list up into data.frame
+names(char.data.list) <- all.char.names
+character.data <- char.data.list %>% bind_rows(.id = "Character")
 
 # checkpoint
-write.csv(char.long, "character.data.csv")
+write.csv(character.data, "character.data.csv")
+
+
+
+
 
 #---------------- Birth Years -----------------------------
 
