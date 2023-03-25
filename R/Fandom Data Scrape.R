@@ -59,7 +59,6 @@ scrape.fandom.wiki <- function(character,
 
 }
 
-
 #populate all.char.data by mapping scrape.fandom.wiki across character vector... can take a while (10 mins)
 
 char.data.list <- map(.x=all.char.names,
@@ -67,6 +66,7 @@ char.data.list <- map(.x=all.char.names,
                      base.url=base.url.characters)
 
 # tidy the list up into data.frame
+
 names(char.data.list) <- all.char.names
 character.data <- char.data.list %>% bind_rows(.id = "Character")
 
@@ -77,89 +77,6 @@ write.csv(character.data, "character.data.csv")
 
 
 
-#---------------- Birth Years -----------------------------
-
-chars.born <- char.long %>% filter(char.stat == "Born")
-
-# characters that don't have a born date
-setdiff(all.char.names, chars.born$char.name)
-# characters that do have a born date
-intersect(all.char.names, chars.born$char.name)
-
-# clean the date of birth data to get 4-digit year
-year.of.birth <- chars.born$char.value %>%
-  str_replace_all("(See \"Background information\" below)", "") %>%
-  str_replace_all(" ", "") %>%
-  str_replace_all("[a-z,A-Z,(,)]", "") %>%
-  str_sub(start = -4) %>%
-  parse_double()
-
-# df of characters with a valid year of birth
-valid.births <- data.frame(chars.born, year.of.birth) %>%
-  filter(year.of.birth > 999) %>% # removes entries that has only date and not year of birth
-  select(char.name, year.of.birth)
-
-#------------------- Exposure Years ----------------------
-
-char.durations <- char.long %>% filter(char.stat == "Duration")
-
-# function to produce a vector from the string formats used within "Duration" entries
-transcribe.duration <- function(x) {
-  y <- str_replace_all(x, " to present", ":2022")
-  y <- str_replace_all(y, "-", ":")
-  # two lines to get rid of specials
-  cut.off <- str_locate(y, "\\(Coronation Street\\)") %>% .[[1]]
-  if (!is.na(cut.off)) {
-    y <- str_sub(y, end = cut.off - 1)
-  }
-  y <- str_replace_all(y, "[a-zA-Z\\(\\)]", "")
-  eval(parse(text = str_c("c(", y, ")")))
-}
-
-# map the function to get vector of exposure for every character
-years.exposure.list <- map(char.durations$char.value, transcribe.duration)
-names(years.exposure.list) <- char.durations$char.name
-exposure.table <- enframe(years.exposure.list) %>% unnest(value)
-names(exposure.table) <- c("char.name", "year.exposure")
-
-# add year of birth and get age for each exposure
-exposure.table.2 <- exposure.table %>%
-  inner_join(valid.births) %>%
-  mutate(age = year.exposure - year.of.birth)
-
-
-#------------------- Death Years ----------------------
-
-# create data.frame of characters and death years
-char.deaths <- char.long %>% filter(char.stat == "Died")
-year.death <- char.deaths$char.value %>%
-  str_sub(start = -4) %>%
-  parse_double()
-char.deaths.full <- data.frame(char.deaths, year.death) %>% select(char.name, year.death)
-
-# join deaths table to exposure table
-exposure.table.3 <- left_join(exposure.table.2, char.deaths.full)
-
-# add is.death variable when year of death matches year of exposure
-is.death <- (exposure.table.3$year.death == exposure.table.3$year.exposure) %>%
-  str_replace_na(replacement = F) %>%
-  as.logical()
-exposure.table.4 <- data.frame(exposure.table.3, is.death)
-
-# some of characters die within 1 year of leaving show... most likely due to actor dying in real life
-# ...these characters were usually still living at Coronation Street and die on holiday (or similar)
-# ...therefore think it is appropriate to include, so we reduce year of death by 1 (reasonable approximation)
-die.after.last.appear <- exposure.table.4 %>%
-  group_by(char.name) %>%
-  summarise(is.dead = max(is.death), year.death = mean(year.death)) %>%
-  filter(!is.na(year.death), is.dead == 0) %>%
-  .$char.name
-adjusters <- (exposure.table.4$char.name %in% die.after.last.appear)
-exposure.table.4$year.death[adjusters] <- exposure.table.4$year.death[adjusters] - 1
-is.death.adj <- (exposure.table.4$year.death == exposure.table.4$year.exposure) %>%
-  str_replace_na(replacement = F) %>%
-  as.logical()
-exposure.table.4$is.death <- is.death.adj
 
 #---------------- Extra Variables in Exposure Table ---------------------------------
 
