@@ -3,26 +3,6 @@ character.data <- read.csv("character.data.csv")
 
 all.char.names <- character.data$Character %>% unique()
 
-#---------------- Birth Years -----------------------------
-
-chars.born <- character.data %>% filter(Field == "Born")
-
-# birth date is messy and needs cleaning.
-# decided to only have birth year as some characters only have year...
-# ...and didn't want to exclude these
-
-year.of.birth <- chars.born$Value %>%
-  str_replace_all("(See \"Background information\" below)", "") %>%   #remove specific text sometimes in field
-  str_replace_all(" ", "") %>%                                        #remove spaces
-  str_replace_all("[a-z,A-Z,(,)]", "") %>%                            #remove letters and commas
-  str_sub(start = -4) %>%
-  parse_double()
-
-# data frame of characters with a valid year of birth
-
-valid.births <- data.frame(chars.born, year.of.birth) %>%
-  filter(year.of.birth > 999) %>%                                     # removes a few entries that had a date without year of birth
-  select(Character, year.of.birth)
 
 #------------------- Exposure Years ----------------------
 
@@ -57,16 +37,31 @@ years.exposure.list <- map(char.durations$Value, transcribe.duration)
 names(years.exposure.list) <- char.durations$Character
 
 # reformat into data.frame of exposure
-exposure.table <- enframe(years.exposure.list) %>% unnest(value)
-names(exposure.table) <- c("Character", "year.exposure")
+appearances <- enframe(years.exposure.list) %>% unnest(value)
+names(appearances) <- c("Character", "year.exposure")
 
 
-#------------------- Calc Age ----------------------
 
-# add year of birth and get age for each exposure
-exposure.table.2 <- exposure.table %>%
-  inner_join(valid.births) %>%
-  mutate(age = year.exposure - year.of.birth)
+#---------------- Birth Years -----------------------------
+
+chars.born <- character.data %>% filter(Field == "Born")
+
+# birth date is messy and needs cleaning.
+# decided to only have birth year as some characters only have year...
+# ...and didn't want to exclude these
+
+year.of.birth <- chars.born$Value %>%
+  str_replace_all("(See \"Background information\" below)", "") %>%   #remove specific text sometimes in field
+  str_replace_all(" ", "") %>%                                        #remove spaces
+  str_replace_all("[a-z,A-Z,(,)]", "") %>%                            #remove letters and commas
+  str_sub(start = -4) %>%
+  parse_double()
+
+# data frame of characters with a valid year of birth
+
+valid.births <- data.frame(chars.born, year.of.birth) %>%
+  filter(year.of.birth > 999) %>%                                     # removes a few entries that had a date without year of birth
+  select(Character, year.of.birth)
 
 
 #------------------- Death Years ----------------------
@@ -88,12 +83,8 @@ year.death <- char.deaths$Value %>%
   parse_double()
 char.deaths.full <- data.frame(char.deaths, year.death) %>% select(Character, year.death)
 
-#create is.death field and add to exposure table
-exposure.table.3 <- data.frame(exposure.table.2,
-                               is.death = vector(length = nrow(exposure.table.2), mode="logical"))
-
 # initial joining of deaths table to exposure table
-last.appearance <- exposure.table %>%
+last.appearance <- appearances %>%
   group_by(Character) %>%
   filter(year.exposure == max(year.exposure)) %>%
   ungroup()
@@ -105,13 +96,20 @@ dead.on.street <- left_join(last.appearance, char.deaths.full) %>%
   filter(year.death == year.exposure | year.death == year.exposure + 1) %>%
   select(-year.death)
 
-# create vector that tells if each row of exposure.table is present in dead.on.street vector
-is.death <- apply(exposure.table.2 %>% select(Character, year.exposure), 1, function(row) {
+# create vector that tells if each row of appearances is present in dead.on.street vector
+is.death <- apply(appearances, 1, function(row) {
   any(apply(dead.on.street, 1, function(row2) all(row == row2)))
 })
 
 
-# add is.death variable to exposure table data.frame
-exposure.table.4 <- data.frame(exposure.table.3, is.death)
+# ----------- Combining data frames to get Exposure Table  ------------------------------
 
+# add year of birth and get age for each exposure
+exposure.table <- data.frame(appearances,is.death) %>%    #attached the is.death field to appearances table
+  inner_join(valid.births) %>%                            #inner join valid births. not interested in characters that can't age so using inner_join
+  mutate(age = year.exposure - year.of.birth)             #calculate age
 
+# create new variable for rounded age and year
+et.trunc <- exposure.table %>%
+  mutate(round.age = floor(age / round.base) * round.base) %>%
+  mutate(round.year = floor(year.exposure / round.base) * round.base)
