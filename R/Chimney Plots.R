@@ -129,6 +129,6 @@ names(chimney) <- c("Year", "Age")
 
 # save the plots
 
-ggsave("Exposure by Year (chimney).jpg", chimney[[Year]])
+ggsave("./Plots/Exposure by Year (chimney).jpg", chimney[[Year]])
 
-ggsave("Exposure by Age (chimney).jpg", chimney[[Age]])
+ggsave("./Plots/Exposure by Age (chimney).jpg", chimney[[Age]])
