@@ -1,15 +1,20 @@
 
-character.data <- read.csv("character.data.csv")
+library(tidyverse)
+
+character.data <- read.csv("./Data/character.data.csv")
 
 all.char.names <- character.data$Character %>% unique()
+
+#current year. Used to interpret meaning of "yyyy - present" within data
+curr.year <- 2023
+
+#no. of years truncating exposure
+round.base <- 5
 
 
 #------------------- Exposure Years ----------------------
 
 char.durations <- character.data %>% filter(Field == "Duration")
-
-# function to produce a vector from the string formats used within "Duration" entries
-curr.year <- 2023
 
 # function that turns a string (as per Duration entry of fandom.wiki) into a vector of years of appearance
 transcribe.duration <- function(x) {
@@ -109,7 +114,4 @@ exposure.table <- data.frame(appearances,is.death) %>%    #attached the is.death
   inner_join(valid.births) %>%                            #inner join valid births. not interested in characters that can't age so using inner_join
   mutate(age = year.exposure - year.of.birth)             #calculate age
 
-# create new variable for rounded age and year
-et.trunc <- exposure.table %>%
-  mutate(round.age = floor(age / round.base) * round.base) %>%
-  mutate(round.year = floor(year.exposure / round.base) * round.base)
+

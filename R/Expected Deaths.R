@@ -1,6 +1,11 @@
 
 
+# create new variable for rounded age and year
+round.base <- 10
 
+et.trunc <- exposure.table %>%
+  mutate(round.age = floor(age / round.base) * round.base) %>%
+  mutate(round.year = floor(year.exposure / round.base) * round.base)
 
 
 #------------------- Expected Mortality ----------------------

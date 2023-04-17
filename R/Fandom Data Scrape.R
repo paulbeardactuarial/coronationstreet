@@ -1,6 +1,4 @@
 library(tidyverse)
-library(ggpattern)
-
 
 # base URL code for scraping character names
 base.url.letters <- "https://coronationstreet.fandom.com/wiki/Category:List_of_main_character_appearances?from="
