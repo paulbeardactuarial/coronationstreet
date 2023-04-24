@@ -4,7 +4,8 @@
 #
 #
 
-transcribe.duration <- function(x) {
+transcribe.duration <- function(x,
+                                curr.year) {
   # apply cleaning to x to get y
   y <- str_replace_all(x, " to present", str_c(":", curr.year, sep = "")) # some entries say "to present" so convert to what that means in term of appearance years
   y <- str_replace_all(y, "-", ":") # change to ":" so can evaluate the code to create vector
@@ -43,7 +44,7 @@ create.experience.table <- function(character.data,
   char.durations <- character.data %>% filter(Field == "Duration")
 
   # map the function that converts a duration string to vector of numeric years
-  years.exposure.list <- map(char.durations$Value, transcribe.duration)
+  years.exposure.list <- map(char.durations$Value, transcribe.duration,curr.year=curr.year)
   names(years.exposure.list) <- char.durations$Character
 
   # reformat into data.frame of exposure

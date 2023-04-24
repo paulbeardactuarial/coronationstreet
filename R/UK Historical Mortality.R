@@ -1,4 +1,7 @@
-
+# old.mortality.table()
+# function to construct old mortality table from ONS data files.
+# to work, you must have "icd2.xls" and "popln_tcm77-215653.xls" files saved in 'Data' subfolder
+# this data is for mortality in 1910s only. Different processes are required for other years
 
 old.mortality.table <- function(
     year = c(1911:1920),
@@ -52,15 +55,49 @@ old.mortality.table <- function(
   mort.data.hist.2 <- bind_rows(young.combo, mort.data.hist) %>%
     filter(!age %in% c("<1", "01-04"))
 
-  output <- mort.data.hist.2 %>%
+  mort.data.hist.3 <- mort.data.hist.2 %>%
     filter(yr %in% year, sex %in% sex.value) %>%
     group_by(age) %>%
     summarise(mort.rate = mean(mort.rate))
 
-  output$round.age <- output$age %>%
+  mort.data.hist.3$round.age <- mort.data.hist.3$age %>%
     str_sub(0, 2) %>%
     str_replace("<1", "0") %>%
     as.numeric()
+
+  output <- mort.data.hist.3 %>%
+    group_by(round.age) %>%
+    summarise(mort.rate = mean(mort.rate)) %>%
+    rename(qx = mort.rate,
+           age = round.age)
+
+  return(output)
+}
+
+
+
+
+# new.mortality.table()
+# function to construct mortality table from ONS data files.
+# to work, you must have "icd2.xls" and "popln_tcm77-215653.xls" files saved in 'Data' subfolder
+# this data is for mortality in 1910s only. Different processes are required for other years
+
+new.mortality.table <- function(
+    year = c(2019,2020),
+    sex = c("male", "female")) {
+
+  ONS.mort.path <- paste("./Data/","ONS Mortality Rates ",year,".csv",sep="")
+  ONS.mort <- read.csv(ONS.mort.path)
+
+  ONS.mort$gender <- tolower(ONS.mort$gender)
+  sex <- tolower(sex)
+
+  expected.mortality <- ONS.mort %>%
+    filter(gender %in% sex) %>%
+    group_by(age) %>%
+    summarise(qx = mean(qx))
+
+  output <- expected.mortality
 
   return(output)
 }

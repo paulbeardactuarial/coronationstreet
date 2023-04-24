@@ -66,7 +66,7 @@ scrape.corrie.data <- function(save.results) {
 
   # write csv file
   if (save.results) {
-    write.csv(character.data, "character.data.csv")
+    write.csv(character.data, "./Data/character.data.csv")
   }
 
   return(character.data)
